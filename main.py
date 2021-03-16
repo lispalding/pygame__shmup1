@@ -164,6 +164,7 @@ class NPC(pg.sprite.Sprite):
         self.speedx = self.randSpeedX
         self.speedy = self.randSpeedY
 
+        ## Setting up rotation:
         self.rotation = 0
         self.rotationSpeed = r.randint(-8, 8)
         self.lastUpdate = pg.time.get_ticks()
