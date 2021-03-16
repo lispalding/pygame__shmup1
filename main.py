@@ -19,14 +19,32 @@ title = "Shmup"
 
 WIDTH = 300
 HEIGHT = 600
+
+debugging = True
+############## !! FIN !! ###############
+
+############# !! ASSETS !! #############
+gameFolder = path.dirname(__file__)
+imageDirectory = path.join(gameFolder, "images")
 ############## !! FIN !! ###############
 
 ############# !! CLASSES !! ############
 class Player(pg.sprite.Sprite):
     def __init__(self):
         super(Player, self).__init__() # Setting the __init__ function as the super class
-        self.image = pg.Surface((20, 40)) # Setting the height and width of the player sprite
-        self.image.fill(GREEN) # Filling the sprite image a certain color
+        # self.image = pg.Surface((20, 40)) # Setting the height and width of the player sprite
+        # self.image.fill(GREEN) # Filling the sprite image a certain color
+
+        # Creating the player image:
+        self.image = playerImage
+        self.image = pg.transform.scale(playerImage, (50, 38))
+        self.image.set_colorkey(BLACK)
+
+        # Creating a bound box around the image:
+        self.rect = self.image.get_rect()
+        self.radius = int(self.rect.width * 0.85 / 2)
+        if debugging:
+            pg.draw.circle(self.image, RED, self.rect.center, self.radius)
 
         self.rect = self.image.get_rect()
         self.rect.centerx = WIDTH/2
@@ -88,8 +106,19 @@ class Bullet(pg.sprite.Sprite):
         super(Bullet, self).__init__()
 
         ## Creating the bullet image
-        self.image = pg.Surface((10, 20))  # Setting the height and width of the player sprite
-        self.image.fill(BLUE)  # Filling the sprite image a certain color
+        # self.image = pg.Surface((10, 20))  # Setting the height and width of the player sprite
+        # self.image.fill(BLUE)  # Filling the sprite image a certain color
+
+        # Creating the player image:
+        self.image = bulletImage
+        self.image = pg.transform.scale(bulletImage, (8, 25))
+        self.image.set_colorkey(BLACK)
+
+        # Creating a bound box around the image:
+        self.rect = self.image.get_rect()
+        self.radius = int(self.rect.width * 0.85 / 2)
+        if debugging:
+            pg.draw.circle(self.image, RED, self.rect.center, self.radius)
 
         # Positioning the bullet
         self.rect = self.image.get_rect()
@@ -107,22 +136,55 @@ class Bullet(pg.sprite.Sprite):
 class NPC(pg.sprite.Sprite):
     def __init__(self):
         super(NPC, self).__init__()  # Setting the __init__ function as the super class
-        self.image = pg.Surface((20, 20))  # Setting the height and width of the player sprite
-        self.image.fill(RED)  # Filling the sprite image a certain color
+        # self.image = pg.Surface((20, 20))  # Setting the height and width of the player sprite
+        # self.image.fill(RED)  # Filling the sprite image a certain color
+
+        # Random width and height of image
+        self.randHeight = r.randrange(8, 55)
+        self.randWidth = r.randrange(8, 55)
+
+        # Creating the player image:
+        self.image = npcImage
+        self.image = pg.transform.scale(npcImage, (self.randWidth, self.randHeight))
+        self.image.set_colorkey(BLACK)
+
+        # Creating a bound box around the image:
+        self.rect = self.image.get_rect()
+        self.radius = int(self.rect.width * 0.85 / 2)
+        if debugging:
+            pg.draw.circle(self.image, RED, self.rect.center, self.radius)
 
         self.rect = self.image.get_rect()
-        self.rect.centerx = WIDTH / 2
-        self.rect.bottom = (HEIGHT * .08)
+        self.rect.x = r.randrange(WIDTH - self.rect.width)
+        self.rect.y = (HEIGHT * .08)
 
-        self.randSpeedX = r.randrange(2,4)
-        self.randSpeedY = r.randrange(2,4)
+        self.randSpeedX = r.randrange(-3,3)
+        self.randSpeedY = r.randrange(1,8)
 
         self.speedx = self.randSpeedX
         self.speedy = self.randSpeedY
 
+        self.rotation = 0
+        self.rotationSpeed = r.randint(-8, 8)
+        self.lastUpdate = pg.time.get_ticks()
+
+    def rotate(self):
+        now = pg.time.get_ticks()
+
+        if now - self.lastUpdate > 60:
+            self.lastUpdate = now
+
+            ## Rotating sprite
+            # self.image = pg.transform.rotate(self.image, self.rotationSpeed)
+
     def update(self):
         self.rect.x += self.speedx
         self.rect.y += self.speedy
+
+        if self.rect.top > HEIGHT + 10 or self.rect.left < -25 or self.rect.right > WIDTH +20:
+            self.rect.x = r.randrange(WIDTH - self.rect.width)
+            self.rect.y = r.randrange(-100, -40)
+            self.speedy = r.randrange(1, 8)
 
         ##### !! SCREEEN WRAPPING !! #####
         if self.rect.left > WIDTH:
@@ -147,6 +209,22 @@ pg.mixer.init()
 screen = pg.display.set_mode((WIDTH, HEIGHT))
 pg.display.set_caption(title)
 clock = pg.time.Clock()
+############## !! FIN !! ###############
+
+########### !! LOAD IMAGES !! ###########
+## Loading all game graphics
+## Background ##
+background = pg.image.load(path.join(imageDirectory, "starfield.png")).convert()
+background_rect = background.get_rect()
+
+## Player Image ##
+playerImage = pg.image.load(path.join(imageDirectory, "playerShip1_orange.png")).convert()
+
+## NPC Image ##
+npcImage = pg.image.load(path.join(imageDirectory, "meteorBrown_med1.png")).convert()
+
+## Bullet Image ##
+bulletImage = pg.image.load(path.join(imageDirectory, "laserRed16.png")).convert()
 ############## !! FIN !! ###############
 
 ########## !! GAME OBJECTS !! ###########
@@ -175,10 +253,6 @@ for i in playersGroup:
 
 for i in npcGroup:
     allSprites.add(i)
-############## !! FIN !! ###############
-
-########### !! LOAD IMAGES !! ###########
-
 ############## !! FIN !! ###############
 
 ############ !! GAME LOOP !! ###########
@@ -250,6 +324,7 @@ while playing:
 
     ### Display Changes / Render
     screen.fill(BLACK)
+    screen.blit(background, background_rect)
     allSprites.draw(screen)
 
     pg.display.flip()
