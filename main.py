@@ -1,7 +1,7 @@
 # MADE BY: Lisette Spalding
 # FILE NAME: main.py
 # DATE CREATED: 02/25/2021
-# DATE LAST MODIFIED: 03/05/2021
+# DATE LAST MODIFIED: 03/18/2021
 # PYTHON VER. USED: 3.8
 # FILE NAME: main.py
 
@@ -20,12 +20,18 @@ title = "Shmup"
 WIDTH = 300
 HEIGHT = 600
 
-debugging = True
+debugging = False
 ############## !! FIN !! ###############
 
 ############# !! ASSETS !! #############
 gameFolder = path.dirname(__file__)
 imageDirectory = path.join(gameFolder, "images")
+
+## Image Directories
+backgroundImgDir = path.join(imageDirectory, "background")
+bulletImgDir = path.join(imageDirectory, "bullet")
+meteorImgDir = path.join(imageDirectory, "meteor")
+playerImgDir = path.join(imageDirectory, "player")
 ############## !! FIN !! ###############
 
 ############# !! CLASSES !! ############
@@ -55,6 +61,8 @@ class Player(pg.sprite.Sprite):
         self.keypressed = False
 
     def shoot(self):
+        """ To use: self.shoot()
+        This function causes a bullet to be shot by the player. """
         b = Bullet(self.rect.centerx, self.rect.top-1)
         allSprites.add(b)
         bulletGroup.add(b)
@@ -128,6 +136,8 @@ class Bullet(pg.sprite.Sprite):
         self.speedy = -5
 
     def update(self):
+        """ To use: self.update()
+                 This function constantly updates the image of the Bullet. """
         self.rect.y += self.speedy
 
         if self.rect.bottom < 0:
@@ -139,25 +149,31 @@ class NPC(pg.sprite.Sprite):
         # self.image = pg.Surface((20, 20))  # Setting the height and width of the player sprite
         # self.image.fill(RED)  # Filling the sprite image a certain color
 
-        # Random width and height of image
-        self.randHeight = r.randrange(8, 55)
-        self.randWidth = r.randrange(8, 55)
+        ## Random width and height of image
+        self.randHeight = r.randrange(8, 65)
+        self.randWidth = r.randrange(8, 65)
+
+        self.imageOrig = r.choice(meteorImages)
+        self.imageOrig = pg.transform.scale(self.imageOrig, (self.randWidth, self.randHeight))
+        self.imageOrig.set_colorkey(BLACK)
+        self.image = self.imageOrig.copy()
 
         # Creating the player image:
-        self.image = npcImage
-        self.image = pg.transform.scale(npcImage, (self.randWidth, self.randHeight))
-        self.image.set_colorkey(BLACK)
+        # self.image = theNpcImage
+        # self.image.set_colorkey(BLACK)
 
-        # Creating a bound box around the image:
+        ## Creating a bound box around the image:
         self.rect = self.image.get_rect()
         self.radius = int(self.rect.width * 0.85 / 2)
+
         if debugging:
+            # Draws a red circle on the image if debugging = True
             pg.draw.circle(self.image, RED, self.rect.center, self.radius)
 
-        self.rect = self.image.get_rect()
         self.rect.x = r.randrange(WIDTH - self.rect.width)
         self.rect.y = (HEIGHT * .08)
 
+        ## Setting the speed
         self.randSpeedX = r.randrange(-3,3)
         self.randSpeedY = r.randrange(1,8)
 
@@ -170,15 +186,28 @@ class NPC(pg.sprite.Sprite):
         self.lastUpdate = pg.time.get_ticks()
 
     def rotate(self):
+        """ To use: self.rotate()
+         This function rotates an image. """
         now = pg.time.get_ticks()
 
         if now - self.lastUpdate > 60:
-            self.lastUpdate = now
+            self.lastUpdate = now # Setting the last update time to now...
 
             ## Rotating sprite
-            # self.image = pg.transform.rotate(self.image, self.rotationSpeed)
+            self.rotation = (self.rotation + self.rotationSpeed) % 360
+
+            newImage = pg.transform.rotate(self.imageOrig, self.rotation)
+            oldCenter = self.rect.center
+
+            self.image = pg.transform.rotate(self.imageOrig, self.rotation)
+            self.rect = self.image.get_rect()
+            self.rect.center = oldCenter
 
     def update(self):
+        """ To use: self.update()
+         This function constantly updates the image of the NPC. """
+        self.rotate()
+
         self.rect.x += self.speedx
         self.rect.y += self.speedy
 
@@ -210,22 +239,34 @@ pg.mixer.init()
 screen = pg.display.set_mode((WIDTH, HEIGHT))
 pg.display.set_caption(title)
 clock = pg.time.Clock()
+
+fontName = pg.font.match_font("arial")
 ############## !! FIN !! ###############
 
 ########### !! LOAD IMAGES !! ###########
 ## Loading all game graphics
 ## Background ##
-background = pg.image.load(path.join(imageDirectory, "starfield.png")).convert()
+background = pg.image.load(path.join(backgroundImgDir, "starfield.png")).convert()
 background_rect = background.get_rect()
 
 ## Player Image ##
-playerImage = pg.image.load(path.join(imageDirectory, "playerShip1_orange.png")).convert()
+playerImage = pg.image.load(path.join(playerImgDir, "playerShip1_orange.png")).convert()
 
 ## NPC Image ##
-npcImage = pg.image.load(path.join(imageDirectory, "meteorBrown_med1.png")).convert()
+meteorImages = []
+npcImages = ["meteorBrown_big1.png", "meteorBrown_big2.png", "meteorBrown_big3.png",
+             "meteorBrown_big4.png", "meteorBrown_med1.png", "meteorBrown_med3.png",
+             "meteorBrown_small1.png", "meteorBrown_small2.png", "meteorBrown_tiny1.png",
+             "meteorBrown_tiny2.png", "meteorGrey_big1.png", "meteorGrey_big2.png",
+             "meteorGrey_big3.png", "meteorGrey_big4.png", "meteorGrey_med1.png",
+             "meteorGrey_med2.png", "meteorGrey_small1.png", "meteorGrey_small2.png",
+             "meteorGrey_tiny1.png", "meteorGrey_tiny2.png"]
+
+for image in npcImages:
+    meteorImages.append(pg.image.load(path.join(meteorImgDir, image)).convert())
 
 ## Bullet Image ##
-bulletImage = pg.image.load(path.join(imageDirectory, "laserRed16.png")).convert()
+bulletImage = pg.image.load(path.join(bulletImgDir, "laserRed16.png")).convert()
 ############## !! FIN !! ###############
 
 ########## !! GAME OBJECTS !! ###########
@@ -240,7 +281,7 @@ bulletGroup = pg.sprite.Group()
 # Adding Player and NPC to sprite groups
 playersGroup.add(player)
 
-for i in range(12):
+for i in range(3):
     npc = NPC()
     npcGroup.add(npc)
 
@@ -267,11 +308,21 @@ FPS = 60
 ########## .. FIN .. ###########
 
 ######### !! GAME FUNCTIONS !! #########
+def drawText(surface, text, size, x, y):
+    """ To use: drawText(surface, text, size, x, y)
+    This function draws the text on the screen. """
+    font = pg.font.Font(fontName, size)
+    textSurface = font.render(text, True, WHITE)
+    textRect = textSurface.get_rect()
+    textRect.midtop = (x, y)
+    surface.blit(textSurface, textRect)
+
 def spawnNpc():
+    """ To use: spawnNPC()
+     This function spawns an NPC. """
     npc = NPC()
     npcGroup.add(npc)
     allSprites.add(npc)
-
 ######### !! GAME FUNC FINISH !! #######
 
 ######## .. GAME LOOP .. ########
@@ -318,7 +369,8 @@ while playing:
     ## If Bullet hits NPC
     hits1 = pg.sprite.groupcollide(npcGroup, bulletGroup, True, True)
 
-    if hits1: # Spawning an NPC when an asteroid hits bullet
+    for hit in hits1: # Spawning an NPC when an asteroid hits bullet
+        score += 25
         spawnNpc()
 
     allSprites.update()
@@ -327,6 +379,8 @@ while playing:
     screen.fill(BLACK)
     screen.blit(background, background_rect)
     allSprites.draw(screen)
+
+    drawText(screen, str(score), 25, WIDTH / 2, 10)
 
     pg.display.flip()
 ########## .. FIN .. ###########
