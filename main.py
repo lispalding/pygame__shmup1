@@ -26,12 +26,20 @@ debugging = False
 ############# !! ASSETS !! #############
 gameFolder = path.dirname(__file__)
 imageDirectory = path.join(gameFolder, "images")
+soundDirectory = path.join(gameFolder, "sounds")
 
 ## Image Directories
 backgroundImgDir = path.join(imageDirectory, "background")
 bulletImgDir = path.join(imageDirectory, "bullet")
 meteorImgDir = path.join(imageDirectory, "meteor")
 playerImgDir = path.join(imageDirectory, "player")
+explosionImgDir = path.join(imageDirectory, "explosions")
+
+## Sound Directories
+fillerSoundDir = path.join(soundDirectory, "filler_sound")
+ambientSoundDir = path.join(soundDirectory, "ambient_fx")
+musicSoundDir = path.join(soundDirectory, "music")
+fxSoundsDir = path.join(soundDirectory, "sound_fx")
 ############## !! FIN !! ###############
 
 ############# !! CLASSES !! ############
@@ -58,14 +66,40 @@ class Player(pg.sprite.Sprite):
 
         self.speedx = 0
 
+        self.shield = 100
+
+        self.shootDelay = 250
+        self.lastShot = pg.time.get_ticks()
+
+        self.lives = 3
+
+        self.hidden = False
+        self.hideTimer = pg.time.get_ticks()
+
         self.keypressed = False
 
     def shoot(self):
         """ To use: self.shoot()
         This function causes a bullet to be shot by the player. """
-        b = Bullet(self.rect.centerx, self.rect.top-1)
-        allSprites.add(b)
-        bulletGroup.add(b)
+        now = pg.time.get_ticks()
+
+        if now - self.lastShot > self.shootDelay:
+            self.lastShot = now
+            bullet = Bullet(self.rect.centerx, self.rect.top)
+            bulletGroup.add(bullet)
+            allSprites.add(bullet)
+
+    def getHit(self, radius):
+        # self.shield -= radius*2
+        pass
+
+    def hide(self):
+        """ To use: self.hide()
+        This function hides the player (With immunity) temporarily. """
+        self.hidden = True
+        self.hideTimer = pg.time.get_ticks()
+
+        self.rect.center = (WIDTH /2, HEIGHT + 200)
 
     def togglePressed(self):
         """ To use: self.togglePressed()
@@ -81,18 +115,26 @@ class Player(pg.sprite.Sprite):
         ########## !!!! .. FLOW MOVEMENT .. !!!! ##########
         if self.keypressed == False:
             if keystate[pg.K_LEFT] or keystate[pg.K_a]:
-                self.speedx += -3
+                self.speedx += -8
                 self.keypressed = True
 
             if keystate[pg.K_RIGHT] or keystate[pg.K_d]:
-                self.speedx += 3
+                self.speedx += 8
                 self.keypressed = True
 
         self.rect.x += self.speedx
         ########## !!!! .. FLOW FINISHED .. !!!! ##########
 
-        # if keystate[K_SPACE]:
-        #     self.shoot()
+        ### Unhide if hidden
+        if self.hidden and pg.time.get_ticks() - self.hideTimer > 2000:
+            self.hidden = False
+            self.rect.centerx = WIDTH / 2
+            self.rect.bottom = HEIGHT - 10
+
+        ### Shoot if Space Bar is pressed
+        if self.keypressed == False:
+            if keystate[pg.K_SPACE]:
+                self.shoot()
 
         ######### !!!! .. SCREEN BINDING .. !!!! ##########
         ## Binding player to screen area...
@@ -230,6 +272,36 @@ class NPC(pg.sprite.Sprite):
             self.rect.bottom = HEIGHT
         ##### !! WRAPPING FINISH !! #####
 
+class Explosion(pg.sprite.Sprite):
+    def __init__(self, center, size):
+        pg.sprite.Sprite.__init__(self)
+
+        self.size = size
+        self.image = explosionAnimation[self.size][0]
+
+        self.rect = self.image.get_rect()
+        self.rect.center = center
+
+        self.frame = 0
+
+        self.lastUpdate = pg.time.get_ticks()
+        self.frameRate = 60
+
+    def update(self):
+        now = pg.time.get_ticks()
+
+        if now - self.lastUpdate > self.frameRate:
+            self.lastUpdate = now
+            self.frame += 1
+
+            if self.frame == len(explosionAnimation[self.size]):
+                self.kill()
+            else:
+                center = self.rect.center
+                self.image = explosionAnimation[self.size][self.frame]
+                self.rect = self.image.get_rect()
+                self.rect.center = center
+
 ############## !! FIN !! ###############
 
 ######### !! INITIALIZATION !! #########
@@ -243,6 +315,17 @@ clock = pg.time.Clock()
 fontName = pg.font.match_font("arial")
 ############## !! FIN !! ###############
 
+########### !! LOAD SOUNDS !!###########
+shootSound = pg.mixer.Sound(path.join(fillerSoundDir, "pew.wav"))
+
+explosionSounds = []
+for snd in ["expl3.wav", "expl6.wav"]:
+    explosionSounds.append(pg.mixer.Sound(path.join(fillerSoundDir, snd)))
+
+pg.mixer.music.load(path.join(fillerSoundDir, "tgfcoder-FrozenJam-SeamlessLoop.ogg"))
+pg.mixer.music.set_volume(0.4)
+############## !! FIN !! ###############
+
 ########### !! LOAD IMAGES !! ###########
 ## Loading all game graphics
 ## Background ##
@@ -251,6 +334,11 @@ background_rect = background.get_rect()
 
 ## Player Image ##
 playerImage = pg.image.load(path.join(playerImgDir, "playerShip1_orange.png")).convert()
+
+## Lives Image ##
+playerLivesImage = pg.image.load(path.join(playerImgDir, "playerShip1_orange.png")).convert()
+playerLivesImageMini = pg.transform.scale(playerLivesImage, (25, 19))
+playerLivesImageMini.set_colorkey(BLACK)
 
 ## NPC Image ##
 meteorImages = []
@@ -267,6 +355,29 @@ for image in npcImages:
 
 ## Bullet Image ##
 bulletImage = pg.image.load(path.join(bulletImgDir, "laserRed16.png")).convert()
+
+## Explosion Image ##
+explosionAnimation = {}
+explosionAnimation["lg"] = []
+explosionAnimation["sm"] = []
+explosionAnimation["player"] = []
+
+for i in range(9):
+    filename = "regularExplosion0{}.png".format(i)
+    image = pg.image.load(path.join(explosionImgDir, filename)).convert()
+    image.set_colorkey(BLACK)
+
+    imageLg = pg.transform.scale(image, (75, 75))
+    explosionAnimation["lg"].append(imageLg)
+
+    imageSm = pg.transform.scale(image, (32, 32))
+    explosionAnimation["sm"].append(imageSm)
+
+    filename = "sonicExplosion0{0}.png".format(i)
+    image = pg.image.load(path.join(explosionImgDir, filename)).convert()
+    image.set_colorkey(BLACK)
+
+    explosionAnimation["player"].append(image)
 ############## !! FIN !! ###############
 
 ########## !! GAME OBJECTS !! ###########
@@ -285,10 +396,6 @@ for i in range(3):
     npc = NPC()
     npcGroup.add(npc)
 
-bullet = Bullet(WIDTH/2, HEIGHT/2)
-bulletGroup.add(bullet)
-allSprites.add(bullet)
-
 # Auto adding sprites to allSprites group
 for i in playersGroup:
     allSprites.add(i)
@@ -305,6 +412,8 @@ level = 1
 difficulty = 0
 
 FPS = 60
+
+pg.mixer.music.play(loops = -1)
 ########## .. FIN .. ###########
 
 ######### !! GAME FUNCTIONS !! #########
@@ -316,6 +425,27 @@ def drawText(surface, text, size, x, y):
     textRect = textSurface.get_rect()
     textRect.midtop = (x, y)
     surface.blit(textSurface, textRect)
+
+def drawShieldBar(surface, x, y, pct):
+    if pct < 0:
+        pct = 0
+
+    BAR_LENGTH = 100
+    BAR_HEIGHT = 20
+
+    fill = (pct / 100) * BAR_LENGTH
+    outlineRect = pg.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
+    fillRect = pg.Rect(x, y, fill, BAR_HEIGHT)
+
+    pg.draw.rect(surface, BLUE, fillRect)
+    pg.draw.rect(surface, WHITE, outlineRect, 1)
+
+def drawLives(surface, x, y, lives, image):
+    for i in range(lives):
+        imgRect = image.get_rect()
+        imgRect.x = x + 30 * i
+        imgRect.y = y
+        surface.blit(image, imgRect)
 
 def spawnNpc():
     """ To use: spawnNPC()
@@ -347,9 +477,9 @@ while playing:
                 player.togglePressed()
 
         ### TEMPORARY FIX FOR BULLETS ###
-        if event.type == KEYDOWN:
-            if event.key == pg.K_SPACE:
-                player.shoot()
+        # if event.type == KEYDOWN:
+        #     if event.key == pg.K_SPACE:
+        #         player.shoot()
         ####### FIN TEMPORARY FIX #######
 
         if event.type == pg.QUIT: ## Quitting the game when we hit "x" or hits escape
@@ -360,17 +490,33 @@ while playing:
 
     ### Updating Section
     ## If NPC hits Player
-    hits0 = pg.sprite.spritecollide(player, npcGroup, True)
+    hits = pg.sprite.spritecollide(player, npcGroup, True, pg.sprite.collide_circle)
 
-    if hits0: # Spawning an NPC when player gets hit by NPC
+    for hit in hits:
+        player.shield -= hit.radius * 2
+        explosion = Explosion(hit.rect.center, "sm")
+        allSprites.add(explosion)
         spawnNpc()
-    #     playing = False
+        if player.shield <= 0:
+            deathExplosion = Explosion(player.rect.center, "player")
+            allSprites.add(deathExplosion)
+
+            player.hide()
+
+            player.lives -= 1
+            player.shield = 100
+
+            if player.lives == 0 and not deathExplosion.alive():
+                running = False
 
     ## If Bullet hits NPC
-    hits1 = pg.sprite.groupcollide(npcGroup, bulletGroup, True, True)
+    hits = pg.sprite.groupcollide(npcGroup, bulletGroup, True, True)
 
-    for hit in hits1: # Spawning an NPC when an asteroid hits bullet
-        score += 25
+    for hit in hits: # Spawning an NPC when an asteroid hits bullet
+        score += 50 - hit.radius
+        r.choice(explosionSounds).play()
+        explosion = Explosion(hit.rect.center, "lg")
+        allSprites.add(explosion)
         spawnNpc()
 
     allSprites.update()
@@ -381,6 +527,8 @@ while playing:
     allSprites.draw(screen)
 
     drawText(screen, str(score), 25, WIDTH / 2, 10)
+    drawLives(screen, WIDTH - 100, 5, player.lives, playerLivesImageMini)
+    drawShieldBar(screen, 5, 5, player.shield)
 
     pg.display.flip()
 ########## .. FIN .. ###########
