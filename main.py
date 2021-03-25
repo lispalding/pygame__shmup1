@@ -99,7 +99,7 @@ class Player(pg.sprite.Sprite):
         self.hidden = True
         self.hideTimer = pg.time.get_ticks()
 
-        self.rect.center = (WIDTH /2, HEIGHT + 200)
+        self.rect.center = (WIDTH /2, (HEIGHT - (HEIGHT*.05)))
 
     def togglePressed(self):
         """ To use: self.togglePressed()
@@ -316,13 +316,13 @@ fontName = pg.font.match_font("arial")
 ############## !! FIN !! ###############
 
 ########### !! LOAD SOUNDS !!###########
-shootSound = pg.mixer.Sound(path.join(fillerSoundDir, "pew.wav"))
+shootSound = pg.mixer.Sound(path.join(fxSoundsDir, "LaserLoop1.wav"))
 
 explosionSounds = []
-for snd in ["expl3.wav", "expl6.wav"]:
-    explosionSounds.append(pg.mixer.Sound(path.join(fillerSoundDir, snd)))
+for snd in ["Explosion 5.wav", "Explosion 2.wav"]:
+    explosionSounds.append(pg.mixer.Sound(path.join(fxSoundsDir, snd)))
 
-pg.mixer.music.load(path.join(fillerSoundDir, "tgfcoder-FrozenJam-SeamlessLoop.ogg"))
+pg.mixer.music.load(path.join(musicSoundDir, "MattOglseby - 6.ogg"))
 pg.mixer.music.set_volume(0.4)
 ############## !! FIN !! ###############
 
@@ -497,7 +497,7 @@ while playing:
         explosion = Explosion(hit.rect.center, "sm")
         allSprites.add(explosion)
         spawnNpc()
-        if player.shield <= 0:
+        if player.shield <= 0 and pg.time.get_ticks() - player.hideTimer > 1000:
             deathExplosion = Explosion(player.rect.center, "player")
             allSprites.add(deathExplosion)
 
