@@ -1,7 +1,7 @@
 # MADE BY: Lisette Spalding
 # FILE NAME: main.py
 # DATE CREATED: 02/25/2021
-# DATE LAST MODIFIED: 03/18/2021
+# DATE LAST MODIFIED: 03/25/2021
 # PYTHON VER. USED: 3.8
 # FILE NAME: main.py
 
@@ -20,6 +20,9 @@ title = "Shmup"
 WIDTH = 300
 HEIGHT = 600
 
+powerups = ["gun", "gun", "shield", "shield", "shield", "shield",
+            "lives", "lives", "fuel", "fuel", "fuel"]
+
 debugging = False
 ############## !! FIN !! ###############
 
@@ -34,6 +37,7 @@ bulletImgDir = path.join(imageDirectory, "bullet")
 meteorImgDir = path.join(imageDirectory, "meteor")
 playerImgDir = path.join(imageDirectory, "player")
 explosionImgDir = path.join(imageDirectory, "explosions")
+powerupsImgDir = path.join(imageDirectory, "power_ups")
 
 ## Sound Directories
 fillerSoundDir = path.join(soundDirectory, "filler_sound")
@@ -302,6 +306,35 @@ class Explosion(pg.sprite.Sprite):
                 self.rect = self.image.get_rect()
                 self.rect.center = center
 
+class Powerups(pg.sprite.Sprite):
+    def __init__(self):
+        super(Powerups, self).__init__()
+
+        self.powerup = self.selected = r.choice(powerups)
+
+        if self.powerup == "gun":
+            self.image = gunPowerupImage
+            self.image.set_colorkey(BLACK)
+        if self.powerup == "shield":
+            self.image = shieldPowerupImage
+            self.image.set_colorkey(BLACK)
+        if self.powerup == "lives":
+            self.image = livesPowerupImage
+            self.image.set_colorkey(BLACK)
+        if self.powerup == "fuel":
+            self.image = fuelPowerupImage
+            self.image.set_colorkey(BLACK)
+
+
+        self.randSpeedX = r.randrange(-3, 3)
+        self.randSpeedY = r.randrange(1, 8)
+
+    def update(self):
+        self.rect.x += self.randSpeedX
+        self.rect.y += self.randSpeedY
+
+        if self.powerup == "gun":
+            pass
 ############## !! FIN !! ###############
 
 ######### !! INITIALIZATION !! #########
@@ -323,7 +356,7 @@ for snd in ["Explosion 5.wav", "Explosion 2.wav"]:
     explosionSounds.append(pg.mixer.Sound(path.join(fxSoundsDir, snd)))
 
 pg.mixer.music.load(path.join(musicSoundDir, "MattOglseby - 6.ogg"))
-pg.mixer.music.set_volume(0.4)
+pg.mixer.music.set_volume(0.5)
 ############## !! FIN !! ###############
 
 ########### !! LOAD IMAGES !! ###########
@@ -378,6 +411,15 @@ for i in range(9):
     image.set_colorkey(BLACK)
 
     explosionAnimation["player"].append(image)
+
+## Powerups Images ##
+gunPowerupImage = pg.image.load(path.join(powerupsImgDir, "bolt_silver.png")).convert()
+
+shieldPowerupImage = pg.image.load(path.join(powerupsImgDir, "shield_gold.png")).convert()
+
+livesPowerupImage = pg.image.load(path.join(powerupsImgDir, "star_gold.png")).convert()
+
+fuelPowerupImage = pg.image.load(path.join(powerupsImgDir, "pill_red.png")).convert()
 ############## !! FIN !! ###############
 
 ########## !! GAME OBJECTS !! ###########
@@ -437,7 +479,7 @@ def drawShieldBar(surface, x, y, pct):
     outlineRect = pg.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
     fillRect = pg.Rect(x, y, fill, BAR_HEIGHT)
 
-    pg.draw.rect(surface, BLUE, fillRect)
+    pg.draw.rect(surface, YELLOW, fillRect)
     pg.draw.rect(surface, WHITE, outlineRect, 1)
 
 def drawLives(surface, x, y, lives, image):
