@@ -1,9 +1,9 @@
 # MADE BY: Lisette Spalding
 # FILE NAME: main.py
+# PROJECT NAME: python_shmup
 # DATE CREATED: 02/25/2021
-# DATE LAST MODIFIED: 03/25/2021
+# DATE LAST MODIFIED: 04/01/2021
 # PYTHON VER. USED: 3.8
-# FILE NAME: main.py
 
 ########### !! IMPORTS !! ############
 import pygame as pg
@@ -333,8 +333,8 @@ class Powerups(pg.sprite.Sprite):
         self.rect.x += self.randSpeedX
         self.rect.y += self.randSpeedY
 
-        if self.powerup == "gun":
-            pass
+        if self.rect.top > HEIGHT:
+            self.kill()
 ############## !! FIN !! ###############
 
 ######### !! INITIALIZATION !! #########
@@ -413,13 +413,17 @@ for i in range(9):
     explosionAnimation["player"].append(image)
 
 ## Powerups Images ##
-gunPowerupImage = pg.image.load(path.join(powerupsImgDir, "bolt_silver.png")).convert()
+powerupImages = {}
 
-shieldPowerupImage = pg.image.load(path.join(powerupsImgDir, "shield_gold.png")).convert()
+powerupImages["shield"] = pg.image.load(path.join(powerupsImgDir, "shield_gold.png")).convert()
+
+powerupImages["gun"] = pg.image.load(path.join(powerupsImgDir, "bolt_silver.png")).convert()
 
 livesPowerupImage = pg.image.load(path.join(powerupsImgDir, "star_gold.png")).convert()
 
 fuelPowerupImage = pg.image.load(path.join(powerupsImgDir, "pill_red.png")).convert()
+
+alienImage = pg.image.load(path.join(powerupsImgDir, "alien_extra_points.jpg")).convert()
 ############## !! FIN !! ###############
 
 ########## !! GAME OBJECTS !! ###########
@@ -430,6 +434,10 @@ allSprites = pg.sprite.Group()
 playersGroup = pg.sprite.Group()
 npcGroup = pg.sprite.Group()
 bulletGroup = pg.sprite.Group()
+
+powerups = pg.sprite.Group()
+
+alienPower = pg.sprite.Group()
 
 # Adding Player and NPC to sprite groups
 playersGroup.add(player)
@@ -559,7 +567,24 @@ while playing:
         r.choice(explosionSounds).play()
         explosion = Explosion(hit.rect.center, "lg")
         allSprites.add(explosion)
+        if r.random() > 0.9:
+            pow = Powerups(hit.rect.center)
+            allSprites.add(pow)
+            powerups.add(pow)
         spawnNpc()
+
+
+    ## If player hits a Powerup
+    hits = pg.sprite.spritecollide(player, powerups, True)
+
+    for hit in hits:
+        if hit.type == "shield":
+            if player.shield >= 100:
+                player.shield += r.randrange(10, 30)
+                if player.shield >= 100:
+                    player.shield = 100
+        if hit.type == "gun":
+            pass
 
     allSprites.update()
 
