@@ -262,20 +262,6 @@ class NPC(pg.sprite.Sprite):
             self.rect.y = r.randrange(-100, -40)
             self.speedy = r.randrange(1, 8)
 
-        ##### !! SCREEEN WRAPPING !! #####
-        if self.rect.left > WIDTH:
-            self.rect.left = 0
-
-        if self.rect.right < 0:
-            self.rect.right = WIDTH
-
-        if self.rect.top > HEIGHT:
-            self.rect.top = 0
-
-        if self.rect.bottom < 0:
-            self.rect.bottom = HEIGHT
-        ##### !! WRAPPING FINISH !! #####
-
 class Explosion(pg.sprite.Sprite):
     def __init__(self, center, size):
         pg.sprite.Sprite.__init__(self)
