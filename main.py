@@ -1,4 +1,5 @@
 # MADE BY: Lisette Spalding
+# ART WORK CREDIT: "Kenney.nl" @ "www.kenney.nl"
 # FILE NAME: main.py
 # PROJECT NAME: python_shmup
 # DATE CREATED: 02/25/2021
@@ -463,6 +464,8 @@ def drawText(surface, text, size, x, y):
     surface.blit(textSurface, textRect)
 
 def drawShieldBar(surface, x, y, pct):
+    """ To use: drawShieldBar(surface, x, y, pct)
+     This function draws the shield bar on the screen. """
     if pct < 0:
         pct = 0
 
@@ -477,6 +480,8 @@ def drawShieldBar(surface, x, y, pct):
     pg.draw.rect(surface, WHITE, outlineRect, 1)
 
 def drawLives(surface, x, y, lives, image):
+    """ To use: drawLives(surface, x, y, lives, image)
+     This function draws the lives icons on the screen. """
     for i in range(lives):
         imgRect = image.get_rect()
         imgRect.x = x + 30 * i
