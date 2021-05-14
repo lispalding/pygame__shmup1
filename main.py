@@ -21,10 +21,9 @@ title = "Shmup"
 WIDTH = 300
 HEIGHT = 600
 
-powerups = ["gun", "gun", "shield", "shield", "shield", "shield",
-            "lives", "lives", "fuel", "fuel", "fuel"]
-
 debugging = False
+
+POWERUP_TIME = 5000
 ############## !! FIN !! ###############
 
 ############# !! ASSETS !! #############
@@ -72,6 +71,8 @@ class Player(pg.sprite.Sprite):
         self.speedx = 0
 
         self.shield = 100
+        self.fuel = 100
+        self.FUEL_SUBTRACTION = 8
 
         self.shootDelay = 250
         self.lastShot = pg.time.get_ticks()
@@ -81,7 +82,18 @@ class Player(pg.sprite.Sprite):
         self.hidden = False
         self.hideTimer = pg.time.get_ticks()
 
+        self.powerLevel = 1
+        self.powerTimer = pg.time.get_ticks()
+
         self.keypressed = False
+
+    def powerup(self):
+        """ To use: self.powerup()
+        This method causes the power level of the gun to go up"""
+        gunPowerSound.play()
+
+        self.powerLevel += 1
+        self.powerTimer = pg.time.get_ticks()
 
     def shoot(self):
         """ To use: self.shoot()
@@ -90,9 +102,18 @@ class Player(pg.sprite.Sprite):
 
         if now - self.lastShot > self.shootDelay:
             self.lastShot = now
-            bullet = Bullet(self.rect.centerx, self.rect.top)
-            bulletGroup.add(bullet)
-            allSprites.add(bullet)
+
+            if self.powerLevel == 1:
+                bullet = Bullet(self.rect.centerx, self.rect.top)
+                bulletGroup.add(bullet)
+                allSprites.add(bullet)
+            if self.powerLevel >= 2:
+                bullet1 = Bullet(self.rect.right, self.rect.centery)
+                bullet2 = Bullet(self.rect.left, self.rect.centery)
+                bulletGroup.add(bullet1)
+                allSprites.add(bullet1)
+                bulletGroup.add(bullet2)
+                allSprites.add(bullet2)
 
     def getHit(self, radius):
         # self.shield -= radius*2
@@ -119,12 +140,14 @@ class Player(pg.sprite.Sprite):
 
         ########## !!!! .. FLOW MOVEMENT .. !!!! ##########
         if self.keypressed == False:
-            if keystate[pg.K_LEFT] or keystate[pg.K_a]:
+            if (keystate[pg.K_LEFT] or keystate[pg.K_a]) and player.fuel > 0:
                 self.speedx += -8
+                self.fuel -= self.FUEL_SUBTRACTION
                 self.keypressed = True
 
-            if keystate[pg.K_RIGHT] or keystate[pg.K_d]:
+            if (keystate[pg.K_RIGHT] or keystate[pg.K_d]) and player.fuel > 0:
                 self.speedx += 8
+                self.fuel -= self.FUEL_SUBTRACTION
                 self.keypressed = True
 
         self.rect.x += self.speedx
@@ -136,9 +159,15 @@ class Player(pg.sprite.Sprite):
             self.rect.centerx = WIDTH / 2
             self.rect.bottom = HEIGHT - 10
 
+        ### Timeout for powerups
+        if self.powerLevel >= 2 and pg.time.get_ticks() - self.powerTimer > POWERUP_TIME:
+            self.powerLevel -= 1
+            self.powerTimer = pg.time.get_ticks()
+
         ### Shoot if Space Bar is pressed
         if self.keypressed == False:
             if keystate[pg.K_SPACE]:
+                shootSound.play()
                 self.shoot()
 
         ######### !!!! .. SCREEN BINDING .. !!!! ##########
@@ -293,34 +322,41 @@ class Explosion(pg.sprite.Sprite):
                 self.rect = self.image.get_rect()
                 self.rect.center = center
 
-class Powerups(pg.sprite.Sprite):
-    def __init__(self):
-        super(Powerups, self).__init__()
+class Powerup(pg.sprite.Sprite):
+    def __init__(self, center):
+        super(Powerup, self).__init__()
 
-        self.powerup = self.selected = r.choice(powerups)
+        pg.sprite.Sprite.__init__(self)
 
-        if self.powerup == "gun":
-            self.image = gunPowerupImage
-            self.image.set_colorkey(BLACK)
-        if self.powerup == "shield":
-            self.image = shieldPowerupImage
-            self.image.set_colorkey(BLACK)
-        if self.powerup == "lives":
-            self.image = livesPowerupImage
-            self.image.set_colorkey(BLACK)
-        if self.powerup == "fuel":
-            self.image = fuelPowerupImage
+        self.type = r.choice(["gun", "gun", "gun", "shield", "shield", "shield", "shield", "shield", "shield",
+                              "lives", "lives", "lives", "fuel", "fuel", "fuel", "fuel", "fuel", "alienPow", "alienPow",
+                              "alienPow", "alienPow", "alienPoints", "alienPoints", "alienPoints"])
+
+        # Creating the powerup image:
+        self.image = powerupImages[self.type]
+
+        if self.image == (powerupImages["alienPow"] or powerupImages["alienPoints"]):
+            self.image.set_colorkey(RED_TRANSPARENT)
+        if self.image != (powerupImages["alienPow"] or powerupImages["alienPoints"]):
             self.image.set_colorkey(BLACK)
 
+        # Creating a bound box around the image:
+        self.rect = self.image.get_rect()
+        self.radius = int(self.rect.width * 0.85 / 2)
+        if debugging:
+            pg.draw.circle(self.image, RED, self.rect.center, self.radius)
 
-        self.randSpeedX = r.randrange(-3, 3)
-        self.randSpeedY = r.randrange(1, 8)
+        # Positioning the bullet
+        self.rect = self.image.get_rect()
+        self.rect.center = center
+        self.speedy = 2
 
     def update(self):
-        self.rect.x += self.randSpeedX
-        self.rect.y += self.randSpeedY
+        """ To use: self.update()
+                 This function constantly updates the image of the Bullet. """
+        self.rect.y += self.speedy
 
-        if self.rect.top > HEIGHT:
+        if self.rect.bottom < 0:
             self.kill()
 ############## !! FIN !! ###############
 
@@ -336,11 +372,27 @@ fontName = pg.font.match_font("arial")
 ############## !! FIN !! ###############
 
 ########### !! LOAD SOUNDS !!###########
-shootSound = pg.mixer.Sound(path.join(fxSoundsDir, "LaserLoop1.wav"))
+shootSound = pg.mixer.Sound(path.join(fxSoundsDir, "RetroLaser3.wav"))
+
+playerHitSound = pg.mixer.Sound(path.join(fxSoundsDir, "Hit4.wav"))
+
+shieldSound = pg.mixer.Sound(path.join(fxSoundsDir, "UI1.wav"))
+gunPowerSound = pg.mixer.Sound(path.join(fxSoundsDir, "Upgrade2.wav"))
+livesSound = pg.mixer.Sound(path.join(fxSoundsDir, "Square3.wav"))
+
+fuelPowSound = pg.mixer.Sound(path.join(fxSoundsDir, "Alert1.wav"))
+fuelRefillSound = pg.mixer.Sound(path.join(fxSoundsDir, "Scratch2.wav"))
+fuelEmptySound = pg.mixer.Sound(path.join(fxSoundsDir, "Bump3.wav"))
+
+alienSpawnSound = pg.mixer.Sound(path.join(fxSoundsDir, "Spectra1.wav"))
+alienHitSound = pg.mixer.Sound(path.join(fxSoundsDir, "SFX7.wav"))
 
 explosionSounds = []
-for snd in ["Explosion 5.wav", "Explosion 2.wav"]:
-    explosionSounds.append(pg.mixer.Sound(path.join(fxSoundsDir, snd)))
+for snd in ["Explosion 5.wav", "Explosion 1.wav"]:
+    s = pg.mixer.Sound(path.join(fxSoundsDir, snd))
+    s.set_volume(0.72)
+
+    explosionSounds.append(s)
 
 pg.mixer.music.load(path.join(musicSoundDir, "MattOglseby - 6.ogg"))
 pg.mixer.music.set_volume(0.5)
@@ -400,17 +452,31 @@ for i in range(9):
     explosionAnimation["player"].append(image)
 
 ## Powerups Images ##
+playerLivesImagePow = pg.image.load(path.join(playerImgDir, "playerShip1_orange.png")).convert()
+playerLivesImageMiniPow = pg.transform.scale(playerLivesImagePow, (20, 14))
+
+gunPowImage = pg.image.load(path.join(powerupsImgDir, "powerupRed_bolt.png")).convert()
+gunPowImageMini = pg.transform.scale(gunPowImage, (20, 20))
+
+shieldPowImage = pg.image.load(path.join(powerupsImgDir, "powerupBlue_shield.png")).convert()
+shieldPowImageMini = pg.transform.scale(shieldPowImage, (20, 20))
+
+fuelPowImage = pg.image.load(path.join(powerupsImgDir, "powerupYellow_bolt.png")).convert()
+fuelPowImageMini = pg.transform.scale(fuelPowImage, (20, 20))
+
+alienPowImage = pg.image.load(path.join(powerupsImgDir, "alien_pow.png")).convert()
+alienPowImageMini = pg.transform.scale(alienPowImage, (20, 20))
+
+alienExtraPointImage = pg.image.load(path.join(powerupsImgDir, "alien_extra_points.png")).convert()
+alienExtraPointImageMini = pg.transform.scale(alienExtraPointImage, (20, 20))
+
 powerupImages = {}
-
-powerupImages["shield"] = pg.image.load(path.join(powerupsImgDir, "shield_gold.png")).convert()
-
-powerupImages["gun"] = pg.image.load(path.join(powerupsImgDir, "bolt_silver.png")).convert()
-
-livesPowerupImage = pg.image.load(path.join(powerupsImgDir, "star_gold.png")).convert()
-
-fuelPowerupImage = pg.image.load(path.join(powerupsImgDir, "pill_red.png")).convert()
-
-alienImage = pg.image.load(path.join(powerupsImgDir, "alien_extra_points.jpg")).convert()
+powerupImages["shield"] = shieldPowImageMini
+powerupImages["gun"] = gunPowImageMini
+powerupImages["fuel"] = fuelPowImageMini
+powerupImages["lives"] = playerLivesImageMiniPow
+powerupImages["alienPow"] = alienPowImageMini
+powerupImages["alienPoints"] = alienExtraPointImageMini
 ############## !! FIN !! ###############
 
 ########## !! GAME OBJECTS !! ###########
@@ -464,6 +530,22 @@ def drawText(surface, text, size, x, y):
     surface.blit(textSurface, textRect)
 
 def drawShieldBar(surface, x, y, pct):
+    """ To use: drawShieldBar(surface, x, y, pct)
+     This function draws the shield bar on the screen. """
+    if pct < 0:
+        pct = 0
+
+    BAR_LENGTH = 100
+    BAR_HEIGHT = 20
+
+    fill = (pct / 100) * BAR_LENGTH
+    outlineRect = pg.Rect(x, y, BAR_LENGTH, BAR_HEIGHT)
+    fillRect = pg.Rect(x, y, fill, BAR_HEIGHT)
+
+    pg.draw.rect(surface, BLUE, fillRect)
+    pg.draw.rect(surface, WHITE, outlineRect, 1)
+
+def drawFuelBar(surface, x, y, pct):
     """ To use: drawShieldBar(surface, x, y, pct)
      This function draws the shield bar on the screen. """
     if pct < 0:
@@ -535,6 +617,7 @@ while playing:
 
     for hit in hits:
         player.shield -= hit.radius * 2
+        playerHitSound.play()
         explosion = Explosion(hit.rect.center, "sm")
         allSprites.add(explosion)
         spawnNpc()
@@ -558,8 +641,9 @@ while playing:
         r.choice(explosionSounds).play()
         explosion = Explosion(hit.rect.center, "lg")
         allSprites.add(explosion)
+
         if r.random() > 0.9:
-            pow = Powerups(hit.rect.center)
+            pow = Powerup(hit.rect.center)
             allSprites.add(pow)
             powerups.add(pow)
         spawnNpc()
@@ -570,12 +654,71 @@ while playing:
 
     for hit in hits:
         if hit.type == "shield":
+            shieldSound.play()
             if player.shield >= 100:
                 player.shield += r.randrange(10, 30)
                 if player.shield >= 100:
                     player.shield = 100
+
+        if hit.type == "lives":
+            livesSound.play()
+            if player.lives > 3:
+                player.lives = 3
+            if player.lives == 3:
+                player.lives = 4
+
+        if hit.type == "fuel":
+            fuelRefillSound.play()
+
+            choice = r.random()
+            if (player.fuel < 100) and choice < 0.7:
+                player.fuel += r.randrange(10, 30)
+                if player.fuel >= 100:
+                    player.fuel = 100
+            if choice >= 0.7 or player.fuel == 100:
+                fuelPowSound.play()
+                if player.FUEL_SUBTRACTION == 8:
+                    player.FUEL_SUBTRACTION = 5
+                elif player.FUEL_SUBTRACTION == 5:
+                    player.FUEL_SUBTRACTION = 2
+
         if hit.type == "gun":
-            pass
+            player.powerup()
+
+        if hit.type == "alienPow":
+            choice = r.randint(1, 5)
+            if choice == 1:
+                shieldSound.play()
+                if player.shield >= 100:
+                    player.shield += r.randrange(10, 30)
+                    if player.shield >= 100:
+                        player.shield = 100
+            if choice == 2:
+                fuelRefillSound.play()
+                if player.fuel <= 100:
+                    player.fuel += r.randrange(10, 30)
+                    if player.fuel >= 100:
+                        player.fuel = 100
+            if choice == 3:
+                fuelPowSound.play()
+                if player.fuel >= 100:
+                    if player.FUEL_SUBTRACTION == 8:
+                        player.FUEL_SUBTRACTION = 5
+                    elif player.FUEL_SUBTRACTION == 5:
+                        player.FUEL_SUBTRACTION = 2
+            if choice == 4:
+                if player.lives > 3:
+                    livesSound.play()
+                    player.lives = 3
+                if player.lives == 3:
+                    livesSound.play()
+                    player.lives = 4
+            if choice == 5:
+                player.powerup()
+
+        if hit.type == "alien_extra_point":
+            alienHitSound.play()
+            score += 500
 
     allSprites.update()
 
@@ -587,6 +730,7 @@ while playing:
     drawText(screen, str(score), 25, WIDTH / 2, 10)
     drawLives(screen, WIDTH - 100, 5, player.lives, playerLivesImageMini)
     drawShieldBar(screen, 5, 5, player.shield)
+    drawFuelBar(screen, 5, 30,  player.fuel)
 
     pg.display.flip()
 ########## .. FIN .. ###########

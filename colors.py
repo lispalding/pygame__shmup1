@@ -14,5 +14,5 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 
 # Custom Colors
-
+RED_TRANSPARENT = (255, 15, 0)
 ############# FIN #############
